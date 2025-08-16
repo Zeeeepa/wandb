@@ -25,16 +25,16 @@ def test_repr():
         path="foo", digest="bar", ref="", birth_artifact_id="", size=0
     )
     assert (
-        repr(blank_entry) == "ArtifactManifestEntry"
-        "(path='foo', digest='bar', ref='', birth_artifact_id='', size=0, skip_cache=False)"
+        repr(blank_entry)
+        == "ArtifactManifestEntry(path='foo', digest='bar', ref='', birth_artifact_id='', size=0)"
     )
     assert entry != blank_entry
     assert entry != repr(entry)
 
-    short_entry = ArtifactManifestEntry(path="foo", digest="barr")
+    short_entry = ArtifactManifestEntry(path="foo", digest="barr", skip_cache=True)
     assert (
         repr(short_entry)
-        == "ArtifactManifestEntry(path='foo', digest='barr', skip_cache=False)"
+        == "ArtifactManifestEntry(path='foo', digest='barr', skip_cache=True)"
     )
     assert entry != short_entry
 
@@ -49,10 +49,7 @@ def base64_decode(data):
 def test_manifest_download(monkeypatch):
     artifact = Artifact("mnist", type="dataset")
     short_entry = ArtifactManifestEntry(path="foo", digest="barr")
-    assert (
-        repr(short_entry)
-        == "ArtifactManifestEntry(path='foo', digest='barr', skip_cache=False)"
-    )
+    assert repr(short_entry) == "ArtifactManifestEntry(path='foo', digest='barr')"
     short_entry._parent_artifact = artifact
 
     abspath_to_cur_dir = os.path.dirname(os.path.abspath(__file__))
