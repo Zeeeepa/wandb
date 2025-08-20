@@ -124,12 +124,12 @@ class WandbStoragePolicy(StoragePolicy):
         if dest_path is not None:
             self._cache._override_cache_path = dest_path
 
-        path, hit, cache_open = self._cache.check_md5_obj_path(
+        checked_path = self._cache.check_md5_obj_path(
             manifest_entry.digest,
             size=manifest_entry.size or 0,
         )
-        if hit:
-            return path
+        if checked_path.hit:
+            return checked_path.path
 
         if (url := manifest_entry._download_url) is not None:
             # Use multipart parallel download for large file
@@ -138,9 +138,8 @@ class WandbStoragePolicy(StoragePolicy):
                 and (size := manifest_entry.size)
                 and self._should_multipart_download(size, multipart)
             ):
-                self._multipart_file_download(executor, url, size, cache_open)
-                return path
-
+                self._multipart_file_download(executor, url, size, checked_path.open)
+                return checked_path.path
             # Serial download
             try:
                 response = self._session.get(url, stream=True)
@@ -172,10 +171,10 @@ class WandbStoragePolicy(StoragePolicy):
                 file_url, auth=auth, cookies=cookies, headers=headers, stream=True
             )
 
-        with cache_open(mode="wb") as file:
+        with checked_path.open(mode="wb") as file:
             for data in response.iter_content(chunk_size=16 * 1024):
                 file.write(data)
-        return path
+        return checked_path.path
 
     def _should_multipart_download(
         self,
@@ -496,15 +495,15 @@ class WandbStoragePolicy(StoragePolicy):
             return
 
         # Cache upon successful upload.
-        _, hit, cache_open = self._cache.check_md5_obj_path(
+        checked_path = self._cache.check_md5_obj_path(
             entry.digest,
             size=entry.size or 0,
         )
 
         staging_dir = get_staging_dir()
         try:
-            if not entry.skip_cache and not hit:
-                with cache_open("wb") as f, open(entry.local_path, "rb") as src:
+            if not entry.skip_cache and not checked_path.hit:
+                with checked_path.open("wb") as f, open(entry.local_path, "rb") as src:
                     shutil.copyfileobj(src, f)
             if entry.local_path.startswith(staging_dir):
                 # Delete staged files here instead of waiting till
